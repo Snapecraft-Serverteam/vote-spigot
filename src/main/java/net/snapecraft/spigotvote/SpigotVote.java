@@ -22,7 +22,7 @@ public final class SpigotVote extends JavaPlugin implements PluginMessageListene
         saveConfig();
         reloadConfig();
         List<String> cmds = new ArrayList<>();
-        cmds.add("/tellraw %PLAYER% [\"\",{\"text\":\"Danke für deinen Vote\",\"color\":\"red\"}]");
+        cmds.add("tellraw %PLAYER% [\"\",{\"text\":\"Danke für deinen Vote\",\"color\":\"red\"}]");
         getConfig().addDefault("runonvote", cmds);
         getConfig().options().copyDefaults(true);
         saveConfig();

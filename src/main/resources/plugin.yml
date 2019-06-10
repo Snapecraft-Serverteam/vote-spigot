@@ -1,0 +1,7 @@
+name: SpigotVote
+version: ${project.version}
+main: net.snapecraft.spigotvote.SpigotVote
+prefix: Vote
+authors: [Tallerik]
+description: Vote plugin for Spigot works with bungeebackend
+website: https://snapecraft.net

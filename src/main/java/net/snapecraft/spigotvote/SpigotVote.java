@@ -1,41 +1,103 @@
 package net.snapecraft.spigotvote;
 
-import com.google.common.io.ByteArrayDataInput;
-import com.google.common.io.ByteStreams;
-import org.bukkit.Bukkit;
-import org.bukkit.Material;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.messaging.PluginMessageListener;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.*;
+import java.util.UUID;
 
-public final class SpigotVote extends JavaPlugin implements PluginMessageListener {
+public final class SpigotVote extends JavaPlugin implements Listener {
+
+    Connection connection;
+    boolean mysqlInit = false;
+    static SpigotVote instance;
 
     @Override
     public void onEnable() {
-        getServer().getMessenger().registerIncomingPluginChannel(this, "vote:votechannel", this);
+        instance = this;
+        getServer().getPluginCommand("voteshop").setExecutor(this);
+
         initConfig();
+        try {
+            initMysql();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
     }
     private void initConfig() {
         saveConfig();
         reloadConfig();
-        getConfig().addDefault("runcommands", true);
-        List<String> cmds = new ArrayList<>();
-        cmds.add("tellraw %PLAYER% [\"\",{\"text\":\"Danke für deinen Vote\",\"color\":\"red\"}]");
-        getConfig().addDefault("runonvote", cmds);
+        getConfig().addDefault("SQL.host", "localhost");
+        getConfig().addDefault("SQL.user", "root");
+        getConfig().addDefault("SQL.pw", "");
+        getConfig().addDefault("SQL.db", "vote");
+        getConfig().addDefault("SQL.port", 3306);
 
-        getConfig().addDefault("giveitems", true);
-        List<String> items = new ArrayList<>();
-        items.add("DIAMOND:2");
-        getConfig().addDefault("giveonvote", items);
+        getConfig().addDefault("Shopconfig.size", 4);
 
+        getConfig().addDefault("Shop.0.name", "Diamand");
+        getConfig().addDefault("Shop.0.material", "DIAMOND");
+        getConfig().addDefault("Shop.0.price", 500);
+
+        getConfig().addDefault("Shop.1.name", "Eisen");
+        getConfig().addDefault("Shop.1.material", "IRON_INGOT");
+        getConfig().addDefault("Shop.1.price", 100);
         getConfig().options().copyDefaults(true);
         saveConfig();
         reloadConfig();
+    }
+
+    private void initMysql() throws ClassNotFoundException, SQLException {
+        String host = getConfig().getString("SQL.host");
+        String user = getConfig().getString("SQL.user");
+        String pw = getConfig().getString("SQL.pw");
+        String db = getConfig().getString("SQL.db");
+        int port = getConfig().getInt("SQL.port");
+        Class.forName("com.mysql.jdbc.Driver");
+        connection = DriverManager.getConnection("jdbc:mysql://" + host+ ":" + port + "/" + db, user, pw);
+        if(connection.isClosed()) {
+            System.out.println("[VOTE] MYSQL ERROR");
+        }
+        boolean mysqlReady = !connection.isClosed();
+        if(mysqlReady) {
+            Statement sqlst = connection.createStatement();
+
+            String sql1 = "CREATE TABLE IF NOT EXISTS `vote_count`" +
+                    "( `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY," +
+                    " `uuid` VARCHAR(40) NOT NULL UNIQUE, " +
+                    "`votecount` INT NOT NULL , " +
+                    "`lastvote` DATE NOT NULL);";
+            sqlst.executeUpdate(sql1);
+
+            String sql2 = "CREATE TABLE IF NOT EXISTS `vote_points`" +
+                    "( `id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY," +
+                    " `uuid` VARCHAR(40) NOT NULL UNIQUE, " +
+                    "`valuecount` INT NOT NULL);";
+            sqlst.executeUpdate(sql2);
+
+            sqlst.close();
+        }
+        mysqlInit = true;
+    }
+
+    private boolean isReady() {
+        if(!mysqlInit) {
+            return false;
+        }
+        try {
+            if(!connection.isClosed()) {
+                return true;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     @Override
@@ -43,41 +105,85 @@ public final class SpigotVote extends JavaPlugin implements PluginMessageListene
         // Plugin shutdown logic
     }
 
-
     @Override
-    public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if(channel.equalsIgnoreCase("vote:votechannel")) {
-            ByteArrayDataInput in = ByteStreams.newDataInput(message);
-            String subChannel = in.readUTF();
-            if(subChannel.equalsIgnoreCase("VoteAlert")) {
-                String name = in.readUTF();
-                System.out.println(name + " hat gevoted");
-                Player target = Bukkit.getPlayer(name);
-                sucessVote(target);
+    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+        if(args.length != 0) {
+            sender.sendMessage("§cWrong Usage! /voteshop");
+            return true;
+        }
+        Player p = (Player) sender;
+        if(isReady()) {
+            Gui.openshop(p);
+        } else {
+            sender.sendMessage("§cMysql wurde nicht geladen! Kontaktiere ein Teammitglied.");
+        }
+
+
+        return true;
+    }
+
+
+    public VoteObject getVotes(Player p) {
+        if(isReady()) {
+            try {
+                VoteObject obj = null;
+                String sql = "SELECT * FROM vote_count WHERE uuid = '%s'";
+                String sql2 = "SELECT valuecount FROM vote_points WHERE uuid = '%s'";
+                sql = String.format(sql, getUUID(p.getUniqueId()));
+                sql2 = String.format(sql2, getUUID(p.getUniqueId()));
+                Statement stmt = connection.createStatement();
+                Statement stmt2 = connection.createStatement();
+
+                ResultSet pset = stmt.executeQuery(sql2);
+                int points = 0;
+                while (pset.next()) {
+                    points = pset.getInt("valuecount");
+                }
+                pset.close();
+                stmt.close();
+
+                ResultSet rs = stmt2.executeQuery(sql);
+                while (rs.next()) {
+                    obj = new VoteObject(
+                            getUUID(p.getUniqueId()),
+                            rs.getInt("votecount"),
+                            points, rs.getDate("lastvote")
+                    );
+                }
+                rs.close();
+                stmt2.close();
+                return obj;
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+        }
+        return null;
+    }
+
+
+    public void setVoteCoins(Player p, int coins) {
+        try {
+            String sql = "UPDATE vote_points SET valuecount = " + coins + " WHERE uuid = '" + getUUID(p.getUniqueId()) + "';";
+            Statement stmt = connection.createStatement();
+            stmt.executeUpdate(sql);
+            stmt.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    private void sucessVote(Player target) {
-        saveConfig();
-        reloadConfig();
-        List<String> cmds = getConfig().getStringList("runonvote");
-        for (String cmd : cmds) {
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.replaceAll("%PLAYER%" , target.getName()));
-        }
-        List<String> items = getConfig().getStringList("giveonvote");
-        for (String itemstr : items) {
-            String item;
-            int count = -1;
-            String[] types = itemstr.split(":");
-            item = types[0];
-            count = Integer.parseInt(types[1]);
-            Material itemMat = Material.getMaterial(item);
-            if(count == -1 || itemMat == null) {
-                target.sendMessage("§cEs ist ein Fehler aufgetreten. Bitte melde dich bei einem Teammitglied!");
-            } else if (count != -1 && itemMat != null) {
-                target.getInventory().addItem(new ItemStack(itemMat, count));
-            }
-        }
+
+    /**
+     * @param id Spigots UUID Object
+     * @return Player short UUID
+     */
+    private String getUUID(UUID id) {
+        return id.toString().replaceAll("-", "");
     }
+
+    public static SpigotVote getInstance() {
+        return instance;
+    }
+
+
 }

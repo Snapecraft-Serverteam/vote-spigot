@@ -5,3 +5,11 @@ prefix: Vote
 authors: [Tallerik]
 description: Vote plugin for Spigot works with bungeebackend
 website: https://snapecraft.net
+
+commands:
+  voteshop:
+    aliases:
+      - vshop
+      - coinshop
+    description: Opens Votecoins shop
+    usage: /voteshop

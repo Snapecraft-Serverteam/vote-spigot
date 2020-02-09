@@ -2,8 +2,7 @@ name: "pre-release"
 
 on:
   push:
-    branches:
-      - "master"
+    paths: src/*
 
 jobs:
   pre-release:
@@ -26,5 +25,4 @@ jobs:
           prerelease: true
           title: "Development Build"
           files: |
-            LICENSE.txt
             /home/runner/work/vote-spigot/vote-spigot/target/SpigotVote-*.jar

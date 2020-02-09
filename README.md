@@ -6,6 +6,9 @@
 A server-side handler for our custom votifier system. Allows you to redeem your rewards on the subservers with an easy command.
 [Bungeecord handler here](https://github.com/Snapecraft-Serverteam/vote-bungee)
 
+### Dependencies
+- [SmartInvs](https://github.com/MinusKube/SmartInvs)
+
 ### Configuration
 
 ```YAML

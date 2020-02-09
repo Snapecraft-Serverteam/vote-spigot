@@ -57,7 +57,7 @@ public class Gui implements InventoryProvider {
         if(vote != null) {
             golddata.setDisplayName("§aDu hast §6" + vote.getCoins() + " §aVotecoins");
         } else {
-            golddata.setDisplayName("§aDu hast §60§aVotecoins");
+            golddata.setDisplayName("§aDu hast §60 §aVotecoins");
         }
 
         gold.setItemMeta(golddata);
@@ -84,7 +84,7 @@ public class Gui implements InventoryProvider {
             item.setItemMeta(meta);
 
             inv.add(ClickableItem.of(item, e -> {
-                if((int)inv.property("coins") > price) {
+                if((int)inv.property("coins") >= price) {
                     Util.buyItem(material, price, player);
                     inv.setProperty("coins", ((int)inv.property("coins") - price));
                 } else {
@@ -103,7 +103,7 @@ public class Gui implements InventoryProvider {
         ItemMeta golddata = gold.getItemMeta();
         golddata.setDisplayName("§aDu hast §6" + inv.property("coins") + " §aVotecoins");
         gold.setItemMeta(golddata);
-        inv.set(0, 4, ClickableItem.empty(gold));
+        inv.set(0, 2, ClickableItem.empty(gold));
 
     }
 }

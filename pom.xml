@@ -6,7 +6,7 @@
 
     <groupId>net.snapecraft</groupId>
     <artifactId>SpigotVote</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>SpigotVote</name>
